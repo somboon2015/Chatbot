@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>น้องไอที - แชทบอทแนะนำคณะเทคโนโลยีสารสนเทศ</title>
+
+<style>
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: "Sarabun", "Noto Sans Thai", sans-serif;
+    background: #eef2f7;
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 480px;
+    height: 90vh;
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  header {
+    background: #1f4e9c;
+    color: white;
+    padding: 16px;
+  }
+  header h1 { margin: 0; font-size: 20px; }
+  header p  { margin: 4px 0 0; font-size: 13px; opacity: 0.85; }
+
+  .chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .msg {
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    line-height: 1.5;
+    white-space: pre-line;
+    font-size: 15px;
+  }
+  .msg.bot  { background: #e8eef9; align-self: flex-start; border-bottom-left-radius: 4px; }
+  .msg.user { background: #1f4e9c; color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+
+  .quick {
+    padding: 8px 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    border-top: 1px solid #e5e5e5;
+  }
+  .quick button {
+    background: white;
+    border: 1px solid #1f4e9c;
+    color: #1f4e9c;
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .quick button:hover { background: #1f4e9c; color: white; }
+
+  form {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid #e5e5e5;
+  }
+  form input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    font-size: 15px;
+    outline: none;
+  }
+  form button {
+    background: #1f4e9c;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 0 20px;
+    font-size: 15px;
+    cursor: pointer;
+  }
+</style>
+</head>
+
+<body>
+<div class="app">
+  <header>
+    <h1>🤖 น้องไอที</h1>
+    <p>ถามอะไรก็ได้เกี่ยวกับคณะเทคโนโลยีสารสนเทศ</p>
+  </header>
+
+  <div id="chat" class="chat"></div>
+  <div id="quick" class="quick"></div>
+
+  <form id="form">
+    <input id="input" type="text" placeholder="พิมพ์คำถามที่นี่..." autocomplete="off">
+    <button type="submit">ส่ง</button>
+  </form>
+</div>
+
+<script>
+  // ===== 1) คลังความรู้ของบอท (แก้ไข/เพิ่มได้ที่นี่) =====
+  // keywords = คำที่ถ้าอยู่ในคำถาม บอทจะเลือกคำตอบข้อนี้
+  // answer   = คำตอบที่บอทจะพิมพ์ (ใช้ \n เพื่อขึ้นบรรทัดใหม่)
+  const knowledge = [
+    {
+      keywords: ["สวัสดี", "หวัดดี", "hello", "hi", "ดีครับ", "ดีค่ะ"],
+      answer: "สวัสดีครับ! ผมคือน้องไอที ยินดีให้ข้อมูลเกี่ยวกับคณะเทคโนโลยีสารสนเทศ 😊"
+    },
+    {
+      keywords: ["ไอทีคืออะไร", "เรียนอะไร", "คืออะไร", "เทคโนโลยีสารสนเทศ", "ไอที"],
+      answer: "คณะเทคโนโลยีสารสนเทศ (IT) เรียนเรื่องการใช้คอมพิวเตอร์และเทคโนโลยีมาแก้ปัญหาให้คน เช่น\n• เขียนโปรแกรมและสร้างเว็บ/แอป\n• จัดการข้อมูลและฐานข้อมูล\n• ระบบเครือข่ายและความปลอดภัยไซเบอร์\n• การออกแบบระบบให้ใช้งานง่าย"
+    },
+    {
+      keywords: ["อาชีพ", "จบไปทำงาน", "ทำงานอะไร", "สายงาน"],
+      answer: "จบ IT ไปทำงานได้หลากหลาย เช่น\n• นักพัฒนาซอฟต์แวร์ / เว็บ / แอป\n• นักวิเคราะห์ข้อมูล (Data Analyst)\n• ผู้ดูแลระบบเครือข่าย\n• ผู้เชี่ยวชาญด้านความปลอดภัยไซเบอร์\n• นักออกแบบ UX/UI\n• ทำสตาร์ทอัพของตัวเอง"
+    },
+    {
+      keywords: ["เลข", "คณิต", "เก่งเลข", "คำนวณ"],
+      answer: "ไม่จำเป็นต้องเก่งเลขมาก แต่ต้องมีตรรกะและชอบคิดแก้ปัญหา คณิตศาสตร์พื้นฐานช่วยได้ในบางวิชา แต่ฝึกกันทีหลังได้"
+    },
+    {
+      keywords: ["โค้ด", "เขียนโปรแกรม", "โปรแกรมมิ่ง", "python", "ภาษา", "เขียนไม่เป็น"],
+      answer: "ไม่ต้องเขียนโค้ดเป็นมาก่อนก็เรียนได้ เพราะคณะจะสอนตั้งแต่พื้นฐาน ภาษาที่มักเจอ เช่น Python, JavaScript, SQL แต่ถ้าลองฝึกก่อนจะได้เปรียบ"
+    },
+    {
+      keywords: ["ai", "เอไอ", "ปัญญาประดิษฐ์", "แชทบอท", "chatbot"],
+      answer: "AI คือเทคโนโลยีที่ทำให้คอมพิวเตอร์ทำงานคล้ายการคิดของคน เช่น แชทบอทตัวนี้ก็เป็นตัวอย่างง่ายๆ ที่ใช้กฎจับคำสำคัญตอบคำถาม ส่วน AI ที่ซับซ้อนกว่านี้เป็นเรื่องที่เรียนต่อยอดได้ในคณะ"
+    },
+    {
+      keywords: ["เตรียมตัว", "สมัคร", "พอร์ต", "portfolio", "ต้องมีอะไร"],
+      answer: "เตรียมตัวสมัครได้ดังนี้\n• ทำผลงานที่ใช้งานได้จริงสัก 1-2 ชิ้น (เหมือนแชทบอทตัวนี้)\n• ฝึกพื้นฐานโค้ดจากเว็บเรียนออนไลน์\n• เขียนเล่าว่าทำอะไร แก้ปัญหาอะไร และเรียนรู้อะไร"
+    },
+    {
+      keywords: ["ใครทำ", "ผู้สร้าง", "ใครสร้าง", "เจ้าของ"],
+      answer: "บอทตัวนี้สร้างโดยเจ เป็นผลงานในพอร์ตโฟลิโอเพื่อสมัครเรียนคณะเทคโนโลยีสารสนเทศ เขียนด้วย HTML, CSS และ JavaScript"
+    }
+  ];
+
+  // คำตอบเมื่อบอทไม่เข้าใจคำถาม
+  const fallback = "ขอโทษครับ น้องไอทียังไม่เข้าใจคำถามนี้ 😅 ลองถามใหม่ หรือกดปุ่มคำถามด้านล่างได้เลยครับ";
+
+  // ปุ่มคำถามด่วนที่แสดงด้านล่าง
+  const quickQuestions = ["ไอทีเรียนอะไร", "จบไปทำงานอะไร", "ต้องเก่งเลขไหม", "เขียนโค้ดไม่เป็นเรียนได้ไหม", "เตรียมตัวสมัครยังไง"];
+
+
+  // ===== 2) ส่วนเชื่อมกับหน้าเว็บ =====
+  const chat  = document.getElementById("chat");
+  const quick = document.getElementById("quick");
+  const form  = document.getElementById("form");
+  const input = document.getElementById("input");
+
+  // เพิ่มข้อความใหม่ลงในกล่องแชท
+  function addMessage(text, who) {
+    const div = document.createElement("div");
+    div.className = "msg " + who;   // who = "bot" หรือ "user"
+    div.textContent = text;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight; // เลื่อนลงล่างสุดอัตโนมัติ
+  }
+
+
+  // ===== 3) สมองของบอท =====
+  // ให้คะแนนแต่ละหัวข้อ: คำสำคัญเจอกี่คำ = กี่คะแนน แล้วเลือกหัวข้อที่ได้คะแนนสูงสุด
+  function findAnswer(question) {
+    const q = question.toLowerCase();
+    let best = null;
+    let bestScore = 0;
+
+    for (const item of knowledge) {
+      let score = 0;
+      for (const k of item.keywords) {
+        if (q.includes(k.toLowerCase())) score++;
+      }
+      if (score > bestScore) {
+        best = item;
+        bestScore = score;
+      }
+    }
+    return best ? best.answer : fallback;
+  }
+
+  // เมื่อมีคำถามเข้ามา: โชว์คำถาม -> รอ 0.5 วินาที -> โชว์คำตอบ
+  function ask(text) {
+    addMessage(text, "user");
+    setTimeout(function () {
+      addMessage(findAnswer(text), "bot");
+    }, 500);
+  }
+
+
+  // ===== 4) เริ่มทำงาน =====
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();               // กันหน้าเว็บรีโหลด
+    const text = input.value.trim();
+    if (text === "") return;
+    input.value = "";
+    ask(text);
+  });
+
+  quickQuestions.forEach(function (q) {
+    const btn = document.createElement("button");
+    btn.textContent = q;
+    btn.addEventListener("click", function () { ask(q); });
+    quick.appendChild(btn);
+  });
+
+  addMessage("สวัสดีครับ ผมน้องไอที 🤖\nถามเรื่องคณะเทคโนโลยีสารสนเทศได้เลย หรือกดปุ่มคำถามด้านล่างก็ได้ครับ", "bot");
+</script>
+</body>
+</html>
